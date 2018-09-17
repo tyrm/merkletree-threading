@@ -51,22 +51,37 @@ func (n *Node) verifyNode() ([]byte, error) {
 	if n.leaf {
 		return n.C.CalculateHash()
 	}
-	rightBytes, err := n.Right.verifyNode()
-	if err != nil {
-		return nil, err
-	}
 
-	leftBytes, err := n.Left.verifyNode()
-	if err != nil {
-		return nil, err
-	}
+	leftBytes  := make(chan []byte)
+	leftNode   := make(chan *Node)
+	rightBytes := make(chan []byte)
+	rightNode  := make(chan *Node)
+
+	go verifyNodeWorker(leftNode, leftBytes)
+	go verifyNodeWorker(rightNode, rightBytes)
+
+	leftNode <- n.Left
+	rightNode <- n.Right
+
+	leftByteOutput := <-leftBytes
+	rightByteOutput := <-rightBytes
 
 	h := sha256.New()
-	if _, err := h.Write(append(leftBytes, rightBytes...)); err != nil {
+	if _, err := h.Write(append(leftByteOutput, rightByteOutput...)); err != nil {
 		return nil, err
 	}
 
 	return h.Sum(nil), nil
+}
+
+func verifyNodeWorker(in chan *Node, out chan []byte) {
+	node := <- in
+	bytes, err := node.verifyNode()
+	if err != nil {
+		//TODO: fix error return
+		log.Printf("Error verifying node %s", err)
+	}
+	out <- bytes
 }
 
 //calculateNodeHash is a helper function that calculates the hash of the node.
