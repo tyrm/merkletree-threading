@@ -149,7 +149,7 @@ var table = []struct {
 
 func TestNewTree(t *testing.T) {
 	for i := 0; i < len(table); i++ {
-		tree, err := NewTree(table[i].contents)
+		tree, err := NewTree(table[i].contents, 3)
 		if err != nil {
 			t.Error("error: unexpected error:  ", err)
 		}
@@ -161,7 +161,7 @@ func TestNewTree(t *testing.T) {
 
 func TestMerkleTree_MerkleRoot(t *testing.T) {
 	for i := 0; i < len(table); i++ {
-		tree, err := NewTree(table[i].contents)
+		tree, err := NewTree(table[i].contents, 3)
 		if err != nil {
 			t.Error("error: unexpected error:  ", err)
 		}
@@ -173,11 +173,11 @@ func TestMerkleTree_MerkleRoot(t *testing.T) {
 
 func TestMerkleTree_RebuildTree(t *testing.T) {
 	for i := 0; i < len(table); i++ {
-		tree, err := NewTree(table[i].contents)
+		tree, err := NewTree(table[i].contents, 3)
 		if err != nil {
 			t.Error("error: unexpected error:  ", err)
 		}
-		err = tree.RebuildTree()
+		err = tree.RebuildTree(3)
 		if err != nil {
 			t.Error("error: unexpected error:  ", err)
 		}
@@ -189,11 +189,11 @@ func TestMerkleTree_RebuildTree(t *testing.T) {
 
 func TestMerkleTree_RebuildTreeWith(t *testing.T) {
 	for i := 0; i < len(table)-1; i++ {
-		tree, err := NewTree(table[i].contents)
+		tree, err := NewTree(table[i].contents, 3)
 		if err != nil {
 			t.Error("error: unexpected error:  ", err)
 		}
-		err = tree.RebuildTreeWith(table[i+1].contents)
+		err = tree.RebuildTreeWith(table[i+1].contents, 3)
 		if err != nil {
 			t.Error("error: unexpected error:  ", err)
 		}
@@ -205,7 +205,7 @@ func TestMerkleTree_RebuildTreeWith(t *testing.T) {
 
 func TestMerkleTree_VerifyTree(t *testing.T) {
 	for i := 0; i < len(table); i++ {
-		tree, err := NewTree(table[i].contents)
+		tree, err := NewTree(table[i].contents, 3)
 		if err != nil {
 			t.Error("error: unexpected error:  ", err)
 		}
@@ -230,7 +230,7 @@ func TestMerkleTree_VerifyTree(t *testing.T) {
 
 func TestMerkleTree_VerifyContent(t *testing.T) {
 	for i := 0; i < len(table); i++ {
-		tree, err := NewTree(table[i].contents)
+		tree, err := NewTree(table[i].contents, 3)
 		if err != nil {
 			t.Error("error: unexpected error:  ", err)
 		}
@@ -271,7 +271,7 @@ func TestMerkleTree_VerifyContent(t *testing.T) {
 			if v {
 				t.Error("error: expected invalid content")
 			}
-			if err := tree.RebuildTree(); err != nil {
+			if err := tree.RebuildTree(3); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -287,7 +287,7 @@ func TestMerkleTree_VerifyContent(t *testing.T) {
 
 func TestMerkleTree_String(t *testing.T) {
 	for i := 0; i < len(table); i++ {
-		tree, err := NewTree(table[i].contents)
+		tree, err := NewTree(table[i].contents, 3)
 		if err != nil {
 			t.Error("error: unexpected error:  ", err)
 		}

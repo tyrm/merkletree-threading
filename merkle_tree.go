@@ -8,6 +8,8 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log"
+	"sync"
 )
 
 //Content represents the data that is stored and verified by the tree. A type that
@@ -15,6 +17,12 @@ import (
 type Content interface {
 	CalculateHash() ([]byte, error)
 	Equals(other Content) (bool, error)
+}
+
+//LeafPile is a thread compatible holder for collecting leafs
+type LeafPile struct {
+	leafs map[int]*Node
+	lock  sync.RWMutex
 }
 
 //MerkleTree is the container for the tree. It holds a pointer to the root of the tree,
@@ -76,8 +84,8 @@ func (n *Node) calculateNodeHash() ([]byte, error) {
 }
 
 //NewTree creates a new Merkle Tree using the content cs.
-func NewTree(cs []Content) (*MerkleTree, error) {
-	root, leafs, err := buildWithContent(cs)
+func NewTree(cs []Content, workers int) (*MerkleTree, error) {
+	root, leafs, err := buildWithContent(cs, workers)
 	if err != nil {
 		return nil, err
 	}
@@ -92,23 +100,38 @@ func NewTree(cs []Content) (*MerkleTree, error) {
 //buildWithContent is a helper function that for a given set of Contents, generates a
 //corresponding tree and returns the root node, a list of leaf nodes, and a possible error.
 //Returns an error if cs contains no Contents.
-func buildWithContent(cs []Content) (*Node, []*Node, error) {
+func buildWithContent(cs []Content, workers int) (*Node, []*Node, error) {
 	if len(cs) == 0 {
 		return nil, nil, errors.New("error: cannot construct tree with no content")
 	}
-	var leafs []*Node
-	for _, c := range cs {
-		hash, err := c.CalculateHash()
-		if err != nil {
-			return nil, nil, err
-		}
 
-		leafs = append(leafs, &Node{
-			Hash: hash,
-			C:    c,
-			leaf: true,
-		})
+	// Calculate Hashes
+	var leafpile LeafPile
+	leafpile.leafs = make(map[int]*Node)
+
+	ch := make(chan map[int]Content)
+	var wg sync.WaitGroup
+
+	for i := 1; i <= workers; i++ {
+		wg.Add(1)
+		go buildWithContentWorker(&wg, i, ch, &leafpile)
 	}
+
+	for order, c := range cs {
+		aLeaf := make(map[int]Content)
+		aLeaf[order] = c
+		ch <- aLeaf
+	}
+	close(ch)
+	wg.Wait()
+
+	// Sort
+	var leafs []*Node
+	for i := 0; i < len(leafpile.leafs); i++ {
+		leafs = append(leafs, leafpile.leafs[i])
+	}
+
+	// Add Dupe if Needed
 	if len(leafs)%2 == 1 {
 		duplicate := &Node{
 			Hash: leafs[len(leafs)-1].Hash,
@@ -124,6 +147,28 @@ func buildWithContent(cs []Content) (*Node, []*Node, error) {
 	}
 
 	return root, leafs, nil
+}
+
+//buildWithContentWorker is a worker function for buildWithContent
+func buildWithContentWorker(wg *sync.WaitGroup, id int, leafs chan map[int]Content, pile *LeafPile) {
+	defer wg.Done()
+	for c := range leafs {
+		for order, leaf := range c {
+			hash, err := leaf.CalculateHash()
+			if err != nil {
+				//TODO: fix error return
+				log.Printf("Error calculating hash %s", err)
+			}
+
+			pile.lock.Lock()
+			pile.leafs[order] =  &Node{
+				Hash: hash,
+				C:    leaf,
+				leaf: true,
+			}
+			pile.lock.Unlock()
+		}
+	}
 }
 
 //buildIntermediate is a helper function that for a given list of leaf nodes, constructs
@@ -162,12 +207,12 @@ func (m *MerkleTree) MerkleRoot() []byte {
 
 //RebuildTree is a helper function that will rebuild the tree reusing only the content that
 //it holds in the leaves.
-func (m *MerkleTree) RebuildTree() error {
+func (m *MerkleTree) RebuildTree(workers int) error {
 	var cs []Content
 	for _, c := range m.Leafs {
 		cs = append(cs, c.C)
 	}
-	root, leafs, err := buildWithContent(cs)
+	root, leafs, err := buildWithContent(cs, workers)
 	if err != nil {
 		return err
 	}
@@ -180,8 +225,8 @@ func (m *MerkleTree) RebuildTree() error {
 //RebuildTreeWith replaces the content of the tree and does a complete rebuild; while the root of
 //the tree will be replaced the MerkleTree completely survives this operation. Returns an error if the
 //list of content cs contains no entries.
-func (m *MerkleTree) RebuildTreeWith(cs []Content) error {
-	root, leafs, err := buildWithContent(cs)
+func (m *MerkleTree) RebuildTreeWith(cs []Content, workers int) error {
+	root, leafs, err := buildWithContent(cs, workers)
 	if err != nil {
 		return err
 	}
