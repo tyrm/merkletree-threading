@@ -18,11 +18,11 @@ nlog2(n) steps in the worst case.
 
 #### Documentation 
 
-See the docs [here](https://godoc.org/github.com/cbergoon/merkletree).
+See the docs [here](https://godoc.org/github.com/tyrm/merkletree-threading).
 
 #### Install
 ```
-go get github.com/cbergoon/merkletree
+go get github.com/tyrm/merkletree-threading
 ```
 
 #### Example Usage
@@ -34,7 +34,7 @@ import (
   "crypto/sha256"
   "log"
 
-  "github.com/cbergoon/merkletree"
+  "github.com/tyrm/merkletree-threading"
 )
 
 //TestContent implements the Content interface provided by merkletree and represents the content stored in the tree.
