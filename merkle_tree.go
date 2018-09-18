@@ -19,8 +19,8 @@ type Content interface {
 	Equals(other Content) (bool, error)
 }
 
-//LeafPile is a thread compatible holder for collecting leafs
-type LeafPile struct {
+//leafPile is a thread compatible holder for collecting leafs
+type leafPile struct {
 	leafs map[int]*Node
 	lock  sync.RWMutex
 }
@@ -121,7 +121,7 @@ func buildWithContent(cs []Content, workers int) (*Node, []*Node, error) {
 	}
 
 	// Calculate Hashes
-	var leafpile LeafPile
+	var leafpile leafPile
 	leafpile.leafs = make(map[int]*Node)
 
 	ch := make(chan map[int]Content)
@@ -165,7 +165,7 @@ func buildWithContent(cs []Content, workers int) (*Node, []*Node, error) {
 }
 
 //buildWithContentWorker is a worker function for buildWithContent
-func buildWithContentWorker(wg *sync.WaitGroup, id int, leafs chan map[int]Content, pile *LeafPile) {
+func buildWithContentWorker(wg *sync.WaitGroup, id int, leafs chan map[int]Content, pile *leafPile) {
 	defer wg.Done()
 	for c := range leafs {
 		for order, leaf := range c {
